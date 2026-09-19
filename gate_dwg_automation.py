@@ -7,6 +7,11 @@ CLEAR_WIDTH = 1300.0        # mm
 SKIN_PLATE_HEIGHT = 1500.0   # mm
 WALL_HEIGHT = 2100.0        # mm
 FRAME_ABOVE_WALL = 900.0    # mm
+GEAR_BOX_DIM = (250,250,300)
+SPINDLE_DIAMETER = 50
+SPINDLE_COVER_HEIGHT = 1000
+SPINDLE_COVER_DIAMETER = 100
+CONCRETE_THICKNESS = 500
 
 CB100 = 100
 CH100 = 50
@@ -15,9 +20,11 @@ THK = 10
 
 # Derived Parameters
 FRAME_HEIGHT = WALL_HEIGHT + FRAME_ABOVE_WALL
+SPINDLE_HEIGHT = FRAME_HEIGHT - SKIN_PLATE_HEIGHT + GEAR_BOX_DIM[-1] + THK*2 - 70
+
 
 # Create Document
-doc = ezdxf.new("R2018", setup=True)   # setup=True loads linetypes + EZDXF dimstyle
+doc = ezdxf.new("R2018", setup=True)  
 doc.units = ezdxf.units.MM
 doc.header["$MEASUREMENT"] = 1
 doc.header["$LUNITS"] = 2
@@ -46,6 +53,8 @@ def setup_layers(doc):
     doc.layers.add("L_OUTLINE", color=5)
     doc.layers.add("L_HIDDEN",  color=25, linetype="DASHED")
     doc.layers.add("H_OUTLINE", color=6)
+    doc.layers.add("H_HIDDEN", color=6, linetype="DASHED")
+    doc.layers.add("C_OUTLINE", color=1)
     doc.layers.add("CENTER",  color=1, linetype="CENTER")
     doc.layers.add("DIM",     color=3)
     doc.layers.add("TEXT",    color=2)
@@ -60,6 +69,8 @@ pinblk.add_lwpolyline(((10,7.5), (166,7.5), (166,42.5), (10,42.5)), close=False,
 pinblk.add_circle((140,25), 5, dxfattribs={"layer": "0"})
 Frame_X = doc.blocks.new(name="FrameXSec")
 Leaf_X = doc.blocks.new(name="LeafXSec")
+Hoist_X = doc.blocks.new(name="HoistXSec")
+Conc_X = doc.blocks.new(name="ConcXSec")
 
 def draw_frame_xsection(blk):
     W, H = CLEAR_WIDTH, FRAME_HEIGHT
@@ -98,6 +109,7 @@ def draw_frame_xsection(blk):
 
 
 def draw_leaf_xsection(blk):
+    SR = SPINDLE_DIAMETER/2
     W = CLEAR_WIDTH + 75*2
     H = SKIN_PLATE_HEIGHT
     NVS = round(W/350)-1
@@ -105,9 +117,9 @@ def draw_leaf_xsection(blk):
     HC = W/(NVS+1)
     VC = (H-50)/(NHS-1)
     blk.add_lwpolyline(((0, 0), (W, 0), (W, H), (0, H)), close=True, dxfattribs={"layer": "L_OUTLINE"})
-    blk.add_lwpolyline(((W/2-42.5, H), (W/2-42.5, H+110), (W/2-42.5-THK, H+110), (W/2-42.5-THK, H)), close=False, dxfattribs={"layer": "L_OUTLINE"})
-    blk.add_lwpolyline(((W/2+42.5, H), (W/2+42.5, H+110), (W/2+42.5+THK, H+110), (W/2+42.5+THK, H)), close=False, dxfattribs={"layer": "L_OUTLINE"})
-    blk.add_blockref("PIN", (W/2-42.5-THK*2, H+46))
+    blk.add_lwpolyline(((W/2-SR-THK, H), (W/2-SR-THK, H+110), (W/2-SR-THK-THK, H+110), (W/2-SR-THK-THK, H)), close=False, dxfattribs={"layer": "L_OUTLINE"})
+    blk.add_lwpolyline(((W/2+SR+THK, H), (W/2+SR+THK, H+110), (W/2+SR+THK+THK, H+110), (W/2+SR+THK+THK, H)), close=False, dxfattribs={"layer": "L_OUTLINE"})
+    blk.add_blockref("PIN", (W/2-SR-THK*3, H+46))
     blk.add_line((W/2, -300), (W/2, H+300), dxfattribs={"layer": "Center"})
     for i in range(NHS):
         blk.add_line((0, i*VC+CH100), (W/2, i*VC+CH100), dxfattribs={"layer": "L_OUTLINE"})
@@ -123,11 +135,51 @@ def draw_leaf_xsection(blk):
             blk.add_line((j*HC, (i+1)*VC), (j*HC, (i+1)*VC+CH100-10), dxfattribs={"layer": "L_HIDDEN"})
             blk.add_line((j*HC+10, (i+1)*VC), (j*HC+10, (i+1)*VC+CH100-10), dxfattribs={"layer": "L_HIDDEN"})
 
+def draw_hoisting_xsection(blk):
+    GBL = GEAR_BOX_DIM[0]
+    GBH = GEAR_BOX_DIM[-1]
+    SH = SPINDLE_HEIGHT
+    SR = SPINDLE_DIAMETER/2
+    SCH = SPINDLE_COVER_HEIGHT
+    SCR = SPINDLE_COVER_DIAMETER/2
+
+    blk.add_lwpolyline(((-GBL/2-50, 0), (-GBL/2-50, THK), (GBL/2+50, THK), (GBL/2+50, 0)), close=True, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((GBL/2,THK), (GBL/2,THK+GBH), dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((-GBL/2,THK), (-GBL/2,THK+GBH), dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_lwpolyline(((-GBL/2, THK+GBH), (-GBL/2, THK*2+GBH), (GBL/2, THK*2+GBH), (GBL/2, THK+GBH)), close=True, dxfattribs={"layer": "H_OUTLINE"})
+
+    blk.add_lwpolyline(((-SCR-40, GBH+THK*2), (-SCR-40, GBH+THK*3), (SCR+40, GBH+THK*3), (SCR+40, GBH+THK*2)), close=False, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_lwpolyline(((-SCR, GBH+THK*3), (-SCR, GBH+THK*3+SCH), (SCR, GBH+THK*3+SCH), (SCR, GBH+THK*3)), close=False, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((-SCR+10, GBH+THK*3), (-SCR+10 ,GBH+THK*3+SCH), dxfattribs={"layer": "H_HIDDEN"})
+    blk.add_line((SCR-10, GBH+THK*3), (SCR-10 ,GBH+THK*3+SCH), dxfattribs={"layer": "H_HIDDEN"})
+
+    blk.add_lwpolyline(((-SR, GBH+THK*3+50-SH), (-SR, GBH+THK*3+50-10), (-SR+5, GBH+THK*3+50), (SR-5, GBH+THK*3+50), (SR, GBH+THK*3+50-10), (SR, GBH+THK*3+50-SH)), close=True, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((-SR+5, GBH+THK*3+50-SH+300), (-SR+5, GBH+THK*3+50), dxfattribs={"layer": "H_HIDDEN"})
+    blk.add_line((SR-5, GBH+THK*3+50-SH+300), (SR-5, GBH+THK*3+50), dxfattribs={"layer": "H_HIDDEN"})
+    blk.add_lwpolyline(((SR, GBH+THK*3+50-SH+100), (SR, GBH+THK*3+50-SH-100), (SR+10, GBH+THK*3+50-SH-100), (SR+10, GBH+THK*3+50-SH+100)), close=True, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_lwpolyline(((-SR, GBH+THK*3+50-SH+100), (-SR, GBH+THK*3+50-SH-100), (-SR-10, GBH+THK*3+50-SH-100), (-SR-10, GBH+THK*3+50-SH+100)), close=True, dxfattribs={"layer": "H_OUTLINE"})
+
+def draw_concrete_xsection(blk):
+    H = WALL_HEIGHT
+    CW = CLEAR_WIDTH
+    CT = CONCRETE_THICKNESS
+
+    c_poly = ((-CW-CB100-THK, H), (-CW-CT, H), (-CW-CT, -CT), (CW+CT, -CT), (CW+CT, H), (CW+CB100+THK, H), (CW+CB100+THK, -THK-CH100), (-CW-CB100-THK, -THK-CH100))
+    blk.add_lwpolyline(c_poly, close=True, dxfattribs={"layer": "C_OUTLINE"})
+
+    hatch = msp.add_hatch( color=9, dxfattribs={'layer': 'HATCH'})
+    hatch.set_pattern_fill("AR_CONC", scale=40, angle=0)
+    hatch.paths.add_polyline_path(c_poly, is_closed=True)
+
 
 draw_frame_xsection(Frame_X)
 draw_leaf_xsection(Leaf_X)
+draw_hoisting_xsection(Hoist_X)
+draw_concrete_xsection(Conc_X)
 msp.add_blockref("FrameXSec", (0,0))
 msp.add_blockref("LeafXSec", (35,0))
+msp.add_blockref("HoistXSec", (THK+CB100+CLEAR_WIDTH/2, FRAME_HEIGHT))
+msp.add_blockref("ConcXSec", (THK+CB100+CLEAR_WIDTH/2, 0))
 doc.saveas("gate.dxf")
 
 
