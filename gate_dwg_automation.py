@@ -1,5 +1,8 @@
 import ezdxf
 import openpyxl
+import math
+
+
 
 
 # Input Parameters
@@ -63,14 +66,85 @@ def setup_layers(doc):
 
 setup_layers(doc)
 
+
 pinblk = doc.blocks.new(name="PIN")
 pinblk.add_lwpolyline(((10,0), (0,0), (0,50), (10,50)), close=True, dxfattribs={"layer": "0"})
 pinblk.add_lwpolyline(((10,7.5), (166,7.5), (166,42.5), (10,42.5)), close=False, dxfattribs={"layer": "0"})
 pinblk.add_circle((140,25), 5, dxfattribs={"layer": "0"})
+
+
+
 Frame_X = doc.blocks.new(name="FrameXSec")
 Leaf_X = doc.blocks.new(name="LeafXSec")
 Hoist_X = doc.blocks.new(name="HoistXSec")
 Conc_X = doc.blocks.new(name="ConcXSec")
+
+
+def draw_handle(blk):
+    co = 50
+    ci = 34
+    hd = 400
+    pd = 20
+    blk.add_lwpolyline(((0, co/2), (0, -co/2), (50, -co/2), (50, co/2)), close=True, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((0, ci/2), (50, ci/2), dxfattribs={"layer": "H_HIDDEN"})
+    blk.add_line((0, -ci/2), (50, -ci/2), dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_lwpolyline(
+        ((0, -ci/2), (0, -ci/2+8), (30, -ci/2+8), (30, -ci/2)),
+        close=False, dxfattribs={"layer": "H_OUTLINE"}
+    )
+    
+    blk.add_lwpolyline(((25, co/2), (25, co/2+50), (25+75, co/2+105), (25+75, co/2+155)), close=False, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_lwpolyline(((25, -co/2), (25, -co/2-50), (25+75, -co/2-105), (25+75, -co/2-155)), close=False, dxfattribs={"layer": "H_OUTLINE"})
+    
+    blk.add_lwpolyline(((25-10, co/2), (25-10, co/2+50+5), (25+75-10, co/2+105+5), (25+75-10, co/2+155)), close=False, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_lwpolyline(((25-10, -co/2), (25-10, -co/2-50-5), (25+75-10, -co/2-105-5), (25+75-10, -co/2-155)), close=False, dxfattribs={"layer": "H_OUTLINE"})
+    
+    blk.add_circle((95, hd/2-pd/2), pd/2, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_circle((95, -hd/2+pd/2), pd/2, dxfattribs={"layer": "H_OUTLINE"})
+    
+
+    blk.add_line((105, hd/2-pd/2), (105, -hd/2+pd/2), dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((105-pd, hd/2-pd/2), (105-pd, -hd/2+pd/2), dxfattribs={"layer": "H_OUTLINE"})
+
+    blk.add_lwpolyline(
+        ((95, -hd/2+pd), (290 ,-hd/2+pd), (290 ,-hd/2+pd+15), (295, -hd/2+pd+15), (295, -hd/2-15), (290, -hd/2-15), (290, -hd/2), (95, -hd/2)),
+        close=False, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_lwpolyline(
+        ((107, -173), (107+180, -173), (107+180, -173-34), (107, -173-34)),
+        close=True, dxfattribs={"layer": "H_OUTLINE"}
+    )
+    blk.add_line((107, -173-3), (107+180, -173-3), dxfattribs={"layer": "H_HIDDEN"})
+    blk.add_line((107, -173-34+3), (107+180, -173-34+3), dxfattribs={"layer": "H_HIDDEN"})
+
+def draw_gearbox(blk):
+    GBL = GEAR_BOX_DIM[0]
+    GBH = GEAR_BOX_DIM[-1]
+    hy = 240
+    hx = 125
+
+    blk.add_lwpolyline(((-GBL/2-50, 0), (-GBL/2-50, THK), (GBL/2+50, THK), (GBL/2+50, 0)), close=True, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((GBL/2,THK), (GBL/2,THK+GBH), dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((-GBL/2,THK), (-GBL/2,THK+GBH), dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_lwpolyline(((-GBL/2, THK+GBH), (-GBL/2, THK*2+GBH), (GBL/2, THK*2+GBH), (GBL/2, THK+GBH)), close=True, dxfattribs={"layer": "H_OUTLINE"}) 
+
+    blk.add_line((hx, hy+40), (hx+30, hy+40), dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((hx, hy+35), (hx+30, hy+35), dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((hx, hy+15), (hx+50, hy+15), dxfattribs={"layer": "H_HIDDEN"})
+    blk.add_line((hx, hy-15), (hx+50, hy-15), dxfattribs={"layer": "H_HIDDEN"})
+    blk.add_line((hx, hy-40), (hx+30, hy-40), dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((hx, hy-35), (hx+30, hy-35), dxfattribs={"layer": "H_OUTLINE"})
+
+    
+
+    blk.add_lwpolyline(((hx+30, hy+65), (hx+50, hy+65), (hx+50, hy-65), (hx+30, hy-65)), close=True, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_line((hx+40, hy-65), (hx+40, hy+65), dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_lwpolyline(((hx+50, hy+15), (hx+100, hy+15), (hx+100, hy-15), (hx+15, hy-15)), close=False, dxfattribs={"layer": "H_OUTLINE"})
+
+
+handle = doc.blocks.new(name="HANDLE")
+draw_handle(handle)
+g_box = doc.blocks.new(name="GEARBOX")
+draw_gearbox(g_box)
 
 def draw_frame_xsection(blk):
     W, H = CLEAR_WIDTH, FRAME_HEIGHT
@@ -143,10 +217,8 @@ def draw_hoisting_xsection(blk):
     SCH = SPINDLE_COVER_HEIGHT
     SCR = SPINDLE_COVER_DIAMETER/2
 
-    blk.add_lwpolyline(((-GBL/2-50, 0), (-GBL/2-50, THK), (GBL/2+50, THK), (GBL/2+50, 0)), close=True, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((GBL/2,THK), (GBL/2,THK+GBH), dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((-GBL/2,THK), (-GBL/2,THK+GBH), dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_lwpolyline(((-GBL/2, THK+GBH), (-GBL/2, THK*2+GBH), (GBL/2, THK*2+GBH), (GBL/2, THK+GBH)), close=True, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_blockref("HANDLE", (195, 240))
+    blk.add_blockref("GEARBOX", (0, 0))
 
     blk.add_lwpolyline(((-SCR-40, GBH+THK*2), (-SCR-40, GBH+THK*3), (SCR+40, GBH+THK*3), (SCR+40, GBH+THK*2)), close=False, dxfattribs={"layer": "H_OUTLINE"})
     blk.add_lwpolyline(((-SCR, GBH+THK*3), (-SCR, GBH+THK*3+SCH), (SCR, GBH+THK*3+SCH), (SCR, GBH+THK*3)), close=False, dxfattribs={"layer": "H_OUTLINE"})
@@ -164,12 +236,14 @@ def draw_concrete_xsection(blk):
     CW = CLEAR_WIDTH
     CT = CONCRETE_THICKNESS
 
-    c_poly = ((-CW-CB100-THK, H), (-CW-CT, H), (-CW-CT, -CT), (CW+CT, -CT), (CW+CT, H), (CW+CB100+THK, H), (CW+CB100+THK, -THK-CH100), (-CW-CB100-THK, -THK-CH100))
+    c_poly = ((-CW/2-CB100-THK, H), (-CW/2-CT, H), (-CW/2-CT, -CT), (CW/2+CT, -CT), (CW/2+CT, H), (CW/2+CB100+THK, H), (CW/2+CB100+THK, -THK-CH100), (-CW/2-CB100-THK, -THK-CH100))
     blk.add_lwpolyline(c_poly, close=True, dxfattribs={"layer": "C_OUTLINE"})
 
-    hatch = msp.add_hatch( color=9, dxfattribs={'layer': 'HATCH'})
-    hatch.set_pattern_fill("AR_CONC", scale=40, angle=0)
+    hatch = blk.add_hatch( color=9, dxfattribs={'layer': 'HATCH'})
+    hatch.set_pattern_fill("AR-CONC", scale=3, angle=0)
     hatch.paths.add_polyline_path(c_poly, is_closed=True)
+
+    blk.add_lwpolyline(((CW/2+CT/2, H), (CW/2+CT/2, -CT/2), (-CW/2-CT/2, -CT/2), (-CW/2-CT/2 ,H)), close=False, dxfattribs={"layer": "C_OUTLINE"})
 
 
 draw_frame_xsection(Frame_X)
@@ -181,7 +255,3 @@ msp.add_blockref("LeafXSec", (35,0))
 msp.add_blockref("HoistXSec", (THK+CB100+CLEAR_WIDTH/2, FRAME_HEIGHT))
 msp.add_blockref("ConcXSec", (THK+CB100+CLEAR_WIDTH/2, 0))
 doc.saveas("gate.dxf")
-
-
-
-
