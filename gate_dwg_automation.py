@@ -1,30 +1,20 @@
 import ezdxf
 import openpyxl
 import math
+from config import Parameters
+from helpers import *
 
-
-
-
-# Input Parameters
-CLEAR_WIDTH = 1300.0        # mm
-SKIN_PLATE_HEIGHT = 1500.0   # mm
-WALL_HEIGHT = 2100.0        # mm
-FRAME_ABOVE_WALL = 900.0    # mm
-GEAR_BOX_DIM = (250,250,300)
-SPINDLE_DIAMETER = 50
-SPINDLE_COVER_HEIGHT = 1000
-SPINDLE_COVER_DIAMETER = 100
-CONCRETE_THICKNESS = 500
-
-CB100 = 100
-CH100 = 50
-BP250 = 250
-THK = 10
-
-# Derived Parameters
-FRAME_HEIGHT = WALL_HEIGHT + FRAME_ABOVE_WALL
-SPINDLE_HEIGHT = FRAME_HEIGHT - SKIN_PLATE_HEIGHT + GEAR_BOX_DIM[-1] + THK*2 - 70
-
+p = Parameters(
+    clear_width=1800,
+    skin_plate_height=1000,
+    wall_height=1200,
+    frame_above_wall=900,
+    gear_box_dim=[250, 250, 300],
+    spindle_dia=50,
+    spindle_cover_h=1000,
+    spindle_cover_d=100,
+    concrete_thickness=500
+)
 
 # Create Document
 doc = ezdxf.new("R2018", setup=True)  
@@ -42,104 +32,120 @@ def create_dimst(name, dimscale, dimtxt, dimasz):
     dimstyle.dxf.dimtxt = dimtxt
     dimstyle.dxf.dimasz = dimasz
     dimstyle.dxf.dimlfac = 1
-    return name
+    return dimstyle
 
 dimname = create_dimst("EZDXF", 1, 20, 20)
-doc.header["$DIMSTYLE"] = "dimname"
+doc.header["$DIMSTYLE"] = dimname.dxf.name
 
 msp = doc.modelspace()
 
 # LAYERS to use
 def setup_layers(doc):
-    doc.layers.add("F_OUTLINE", color=2)
-    doc.layers.add("F_HIDDEN",  color=11, linetype="DASHED")
-    doc.layers.add("L_OUTLINE", color=5)
-    doc.layers.add("L_HIDDEN",  color=25, linetype="DASHED")
-    doc.layers.add("H_OUTLINE", color=6)
-    doc.layers.add("H_HIDDEN", color=6, linetype="DASHED")
-    doc.layers.add("C_OUTLINE", color=1)
-    doc.layers.add("CENTER",  color=1, linetype="CENTER")
-    doc.layers.add("DIM",     color=3)
-    doc.layers.add("TEXT",    color=2)
-    doc.layers.add("HATCH",   color=9)
-    doc.layers.add("ASSY",    color=6)
-
+    doc.layers.add("F_OUTLINE",   color=2)
+    doc.layers.add("F_HIDDEN",    color=11, linetype="DASHED")
+    doc.layers.add("L_OUTLINE",   color=5)
+    doc.layers.add("L_HIDDEN",    color=25, linetype="DASHED")
+    doc.layers.add("H_OUTLINE",   color=6)
+    doc.layers.add("H_HIDDEN",    color=6,  linetype="DASHED")
+    doc.layers.add("C_OUTLINE",   color=1)
+    doc.layers.add("S_CHAN_OUTL", color=2)
+    doc.layers.add("CENTER",      color=1,  linetype="CENTER")
+    doc.layers.add("DIM",         color=3)
+    doc.layers.add("TEXT",        color=2)
+    doc.layers.add("HATCH",       color=9)
+    doc.layers.add("ASSY",        color=6)
 setup_layers(doc)
-
+create_channel_block(doc, "C100",  h=50, w=100, tw=6, tf=8)
+create_channel_block(doc, "C150",  h=75, w=150, tw=8, tf=10)
 
 pinblk = doc.blocks.new(name="PIN")
 pinblk.add_lwpolyline(((10,0), (0,0), (0,50), (10,50)), close=True, dxfattribs={"layer": "0"})
 pinblk.add_lwpolyline(((10,7.5), (166,7.5), (166,42.5), (10,42.5)), close=False, dxfattribs={"layer": "0"})
 pinblk.add_circle((140,25), 5, dxfattribs={"layer": "0"})
 
-
-
 Frame_X = doc.blocks.new(name="FrameXSec")
 Leaf_X = doc.blocks.new(name="LeafXSec")
 Hoist_X = doc.blocks.new(name="HoistXSec")
 Conc_X = doc.blocks.new(name="ConcXSec")
 
-
 def draw_handle(blk):
-    co = 50
-    ci = 34
-    hd = 400
-    pd = 20
-    blk.add_lwpolyline(((0, co/2), (0, -co/2), (50, -co/2), (50, co/2)), close=True, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((0, ci/2), (50, ci/2), dxfattribs={"layer": "H_HIDDEN"})
-    blk.add_line((0, -ci/2), (50, -ci/2), dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_lwpolyline(
-        ((0, -ci/2), (0, -ci/2+8), (30, -ci/2+8), (30, -ci/2)),
-        close=False, dxfattribs={"layer": "H_OUTLINE"}
-    )
-    
-    blk.add_lwpolyline(((25, co/2), (25, co/2+50), (25+75, co/2+105), (25+75, co/2+155)), close=False, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_lwpolyline(((25, -co/2), (25, -co/2-50), (25+75, -co/2-105), (25+75, -co/2-155)), close=False, dxfattribs={"layer": "H_OUTLINE"})
-    
-    blk.add_lwpolyline(((25-10, co/2), (25-10, co/2+50+5), (25+75-10, co/2+105+5), (25+75-10, co/2+155)), close=False, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_lwpolyline(((25-10, -co/2), (25-10, -co/2-50-5), (25+75-10, -co/2-105-5), (25+75-10, -co/2-155)), close=False, dxfattribs={"layer": "H_OUTLINE"})
-    
-    blk.add_circle((95, hd/2-pd/2), pd/2, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_circle((95, -hd/2+pd/2), pd/2, dxfattribs={"layer": "H_OUTLINE"})
-    
+    tk = p.thk
+    hy = p.handleaxis
+    hx = p.gb_l/2 + p.cover_length + p.thk*3
+    co = p.shaftcover_handle_outer_r
+    ci = p.shaftcover_handle_inner_r
+    cl = p.cover_length_handle
+    kh = p.locking_key_depth
+    kl = p.locking_key_length
+    hr = p.handle_radius
+    pr = p.handle_pipe_radius
+    pd = p.handle_pipe_dist
+    hcx = pd + tk/2
+    hcy = (hr - pr*2 - co)/3
 
-    blk.add_line((105, hd/2-pd/2), (105, -hd/2+pd/2), dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((105-pd, hd/2-pd/2), (105-pd, -hd/2+pd/2), dxfattribs={"layer": "H_OUTLINE"})
+    # Shaft Cover
+    add_rect(blk, hx, hy-co, cl, co*2, "H_OUTLINE")
+    add_m_line(blk, (hx, hy-ci), (hx+cl, hy-ci), [ci*2], "H_OUTLINE")
 
-    blk.add_lwpolyline(
-        ((95, -hd/2+pd), (290 ,-hd/2+pd), (290 ,-hd/2+pd+15), (295, -hd/2+pd+15), (295, -hd/2-15), (290, -hd/2-15), (290, -hd/2), (95, -hd/2)),
-        close=False, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_lwpolyline(
-        ((107, -173), (107+180, -173), (107+180, -173-34), (107, -173-34)),
-        close=True, dxfattribs={"layer": "H_OUTLINE"}
-    )
-    blk.add_line((107, -173-3), (107+180, -173-3), dxfattribs={"layer": "H_HIDDEN"})
-    blk.add_line((107, -173-34+3), (107+180, -173-34+3), dxfattribs={"layer": "H_HIDDEN"})
+    # Locking Key
+    add_rect(blk, hx, hy-ci, kl, kh, "H_OUTLINE")
+
+    # Connecting Plates
+    blk.add_lwpolyline(((hx+cl/2, hy+co), (hx+cl/2, hy+co+hcy), (hx+cl/2+hcx, hy+co+hcy*2), (hx+cl/2+hcx, hy+co+hcy*3)), close=False, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_lwpolyline(((hx+cl/2, hy-co), (hx+cl/2, hy-co-hcy), (hx+cl/2+hcx, hy-co-hcy*2), (hx+cl/2+hcx, hy-co-hcy*3)), close=False, dxfattribs={"layer": "H_OUTLINE"})
+
+    blk.add_lwpolyline(((hx+cl/2-tk, hy+co), (hx+cl/2-tk, hy+co+hcy+tk/2), (hx+cl/2+hcx-tk, hy+co+hcy*2+tk/2), (hx+cl/2+hcx-tk, hy+co+hcy*3)), close=False, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_lwpolyline(((hx+cl/2-tk, hy-co), (hx+cl/2-tk, hy-co-hcy-tk/2), (hx+cl/2+hcx-tk, hy-co-hcy*2-tk/2), (hx+cl/2+hcx-tk, hy-co-hcy*3)), close=False, dxfattribs={"layer": "H_OUTLINE"})
+    
+    # Handle Pipe
+    blk.add_circle((hx+cl/2+pd, hy+hr-pr), pr, dxfattribs={"layer": "H_OUTLINE"})
+    blk.add_circle((hx+cl/2+pd, hy-hr+pr), pr, dxfattribs={"layer": "H_OUTLINE"})
+    add_m_line(blk, (hx+cl/2+pd-pr, hy+hr-pr), (hx+cl/2+pd-pr, hy-hr+pr), [pr*2], "H_OUTLINE")
+
+    # Handle Grip
+    gl = p.handle_grip_length
+    gr_i = p.grip_inner_radius
+    gr_o = p.grip_outer_radius
+    gx = hx + cl/2 + pd
+    gy = hy - hr + pr
+    add_rect(blk, gx, gy-gr_i, gl-tk/2, gr_i*2, "H_OUTLINE")
+    add_rect(blk, gx+gl-tk/2 ,gy-gr_o, tk/2, gr_o*2, "H_OUTLINE")
+
+    # Handle Grip Cover
+    gcl = gl - pr - 2.5*tk
+    gcr_i = p.grip_cover_inner_radius
+    gcr_o = p.grip_cover_outer_radius
+    add_rect(blk, gx+pr+tk, gy-gcr_o, gcl, gcr_o*2, "H_OUTLINE")
+    add_m_line(blk, (gx+pr+tk, gy-gcr_i), (gx+pr+tk+gcl ,gy-gcr_i), [gcr_i*2], "H_HIDDEN")
 
 def draw_gearbox(blk):
-    GBL = GEAR_BOX_DIM[0]
-    GBH = GEAR_BOX_DIM[-1]
-    hy = 240
-    hx = 125
+    GBL = p.gb_l
+    GBH = p.gb_h
+    hy = p.handleaxis
+    hx = GBL/2
+    THK = p.thk
+    O = p.gearbottomplate_offset
+    cr1 = p.gearshaft_cover_outer_r
+    cr2 = p.gearshaft_cover_inner_r
+    cl = p.cover_length
+    sr = p.gearshafr_r
+    sl = p.shaft_length
+    phr = p.phlange_r
 
-    blk.add_lwpolyline(((-GBL/2-50, 0), (-GBL/2-50, THK), (GBL/2+50, THK), (GBL/2+50, 0)), close=True, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((GBL/2,THK), (GBL/2,THK+GBH), dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((-GBL/2,THK), (-GBL/2,THK+GBH), dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_lwpolyline(((-GBL/2, THK+GBH), (-GBL/2, THK*2+GBH), (GBL/2, THK*2+GBH), (GBL/2, THK+GBH)), close=True, dxfattribs={"layer": "H_OUTLINE"}) 
+    # Gear Box Body
+    add_rect(blk, -GBL/2-O, 0, GBL+O*2, THK, "H_OUTLINE")
+    add_rect(blk, -GBL/2, THK+GBH, GBL, THK, "H_OUTLINE")
+    add_m_line(blk, (-GBL/2,THK), (-GBL/2,THK+GBH), [GBL], "H_OUTLINE")
 
-    blk.add_line((hx, hy+40), (hx+30, hy+40), dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((hx, hy+35), (hx+30, hy+35), dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((hx, hy+15), (hx+50, hy+15), dxfattribs={"layer": "H_HIDDEN"})
-    blk.add_line((hx, hy-15), (hx+50, hy-15), dxfattribs={"layer": "H_HIDDEN"})
-    blk.add_line((hx, hy-40), (hx+30, hy-40), dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((hx, hy-35), (hx+30, hy-35), dxfattribs={"layer": "H_OUTLINE"})
+    # Shaft Cover
+    add_m_line(blk, (hx, hy-cr1), (hx+cl, hy-cr1), [cr1-cr2, cr1+cr2, cr1*2], "H_OUTLINE")
 
-    
-
-    blk.add_lwpolyline(((hx+30, hy+65), (hx+50, hy+65), (hx+50, hy-65), (hx+30, hy-65)), close=True, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((hx+40, hy-65), (hx+40, hy+65), dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_lwpolyline(((hx+50, hy+15), (hx+100, hy+15), (hx+100, hy-15), (hx+15, hy-15)), close=False, dxfattribs={"layer": "H_OUTLINE"})
-
+    # Shaft
+    add_rect(blk, hx, hy-sr, sl, sr*2, "H_OUTLINE")
+ 
+    # phlange
+    add_rect(blk, hx+cl, hy-phr, THK*2, phr*2, "H_OUTLINE")
+    add_line(blk, (hx+cl+THK, hy-phr), (hx+cl+THK, hy+phr), "H_OUTLINE")
 
 handle = doc.blocks.new(name="HANDLE")
 draw_handle(handle)
@@ -147,104 +153,111 @@ g_box = doc.blocks.new(name="GEARBOX")
 draw_gearbox(g_box)
 
 def draw_frame_xsection(blk):
-    W, H = CLEAR_WIDTH, FRAME_HEIGHT
-    TW = W + THK*2 + CB100*2
+    W, H = p.clear_width, p.frame_height
+    THK = p.thk
+    TW = p.total_frame_width
+    CB100 = p.cb100
+    CH100 = p.ch100
 
-    # Vertical Parts
-    blk.add_line((0, 0), (0, H-300), dxfattribs={"layer": "F_OUTLINE"})
-    blk.add_line((0, H-300), (10, H-300), dxfattribs={"layer": "F_OUTLINE"})
+    # Side Plate
+    add_rect(blk, 0, 0, THK, H-300, "F_OUTLINE")
+    add_rect(blk, TW-THK, 0, THK, H-300, "F_OUTLINE")
 
-    blk.add_line((TW, 0), (TW, H-300), dxfattribs={"layer": "F_OUTLINE"})
-    blk.add_line((TW, H-300), (TW-10, H-300), dxfattribs={"layer": "F_OUTLINE"})
+    # Side Chanel
+    add_rect(blk, THK, 0, CB100, H, "F_OUTLINE")
+    add_rect(blk, TW-THK-CB100, 0, CB100, H, "F_OUTLINE")
+    add_m_line(blk, (THK*2, 0), (THK*2, H-CB100), [CB100-2*THK, CB100+W, CB100*2+W-2*THK], "F_HIDDEN")
 
-    blk.add_line((THK, 0), (THK, H), dxfattribs={"layer": "F_OUTLINE"})
-    blk.add_line((THK+THK, 0), (THK+THK, H-CB100), dxfattribs={"layer": "F_HIDDEN"})
-    blk.add_line((CB100, 0), (CB100, H-CB100), dxfattribs={"layer": "F_HIDDEN"})
-    blk.add_line((THK+CB100, 0), (THK+CB100, H), dxfattribs={"layer": "F_OUTLINE"})
+    # Top Channel
+    add_rect(blk, THK, H-CB100, TW-THK*2, CB100, "F_OUTLINE")
+    add_m_line(blk, (THK, H-CB100+THK), (TW-THK, H-CB100+THK), [CB100-THK*2], "F_HIDDEN")
 
-    blk.add_line((TW-THK, 0), (TW-THK, H), dxfattribs={"layer": "F_OUTLINE"})
-    blk.add_line((TW-THK-THK, 0), (TW-THK-THK, H-CB100), dxfattribs={"layer": "F_HIDDEN"})
-    blk.add_line((TW-CB100, 0), (TW-CB100, H-CB100), dxfattribs={"layer": "F_HIDDEN"})
-    blk.add_line((TW-THK-CB100, 0), (TW-THK-CB100, H), dxfattribs={"layer": "F_OUTLINE"})
+    # Bottom plate
+    add_rect(blk, 0, 0, TW, -THK, "F_OUTLINE")
 
-    # Horizontal Parts
-    blk.add_line((THK, H), (TW-THK, H), dxfattribs={"layer": "F_OUTLINE"})
-    blk.add_line((THK, H-THK), (TW-THK, H-THK), dxfattribs={"layer": "F_HIDDEN"})
-    blk.add_line((THK, H-CB100+THK), (TW-THK, H-CB100+THK), dxfattribs={"layer": "F_HIDDEN"})
-    blk.add_line((THK, H-CB100), (TW-THK, H-CB100), dxfattribs={"layer": "F_OUTLINE"})
-
-    blk.add_line((0, 0), (TW, 0), dxfattribs={"layer": "F_OUTLINE"})
-    blk.add_line((0, -THK), (TW, -THK), dxfattribs={"layer": "F_OUTLINE"})
-    blk.add_line((0, -THK-THK), (TW, -THK-THK), dxfattribs={"layer": "F_HIDDEN"})
-    blk.add_line((0, -CH100), (TW, -CH100), dxfattribs={"layer": "F_OUTLINE"})
-
-    blk.add_line((0, 0), (0, -CH100), dxfattribs={"layer": "F_HIDDEN"})
-    blk.add_line((TW, 0), (TW, -CH100), dxfattribs={"layer": "F_OUTLINE"})
+    # Bottom Channel
+    add_rect(blk, 0, -THK, TW, -CH100, "F_OUTLINE")
+    add_line(blk, (0, -THK-THK), (TW, -THK-THK), "F_HIDDEN")
 
 
 def draw_leaf_xsection(blk):
-    SR = SPINDLE_DIAMETER/2
-    W = CLEAR_WIDTH + 75*2
-    H = SKIN_PLATE_HEIGHT
-    NVS = round(W/350)-1
-    NHS = round((H-50)/350)+1
-    HC = W/(NVS+1)
-    VC = (H-50)/(NHS-1)
-    blk.add_lwpolyline(((0, 0), (W, 0), (W, H), (0, H)), close=True, dxfattribs={"layer": "L_OUTLINE"})
-    blk.add_lwpolyline(((W/2-SR-THK, H), (W/2-SR-THK, H+110), (W/2-SR-THK-THK, H+110), (W/2-SR-THK-THK, H)), close=False, dxfattribs={"layer": "L_OUTLINE"})
-    blk.add_lwpolyline(((W/2+SR+THK, H), (W/2+SR+THK, H+110), (W/2+SR+THK+THK, H+110), (W/2+SR+THK+THK, H)), close=False, dxfattribs={"layer": "L_OUTLINE"})
-    blk.add_blockref("PIN", (W/2-SR-THK*3, H+46))
-    blk.add_line((W/2, -300), (W/2, H+300), dxfattribs={"layer": "Center"})
+    CH100 = p.ch100
+    THK = p.thk
+    SR = p.spindle_dia/2
+    W = p.leaf_width
+    H = p.skin_plate_height
+    NVS = p.v_s_number
+    NHS = p.h_s_number
+    HC = p.h_spacing_Calculated
+    VC = p.v_spacing_Calculated
+    ssh = p.spindle_support_height_lower
+
+    # Skin Plate
+    add_rect(blk, 0, 0, W, H, "L_OUTLINE")
+
+    # Spindle Support
+    add_rect(blk, W/2-SR-THK, H, -THK, ssh, "L_OUTLINE")
+    add_rect(blk, W/2+SR+THK, H, THK, ssh, "L_OUTLINE")
+
+    # Locking Pin
+    blk.add_blockref("PIN", (W/2-SR-THK*3, H+46), dxfattribs={"layer": "L_OUTLINE"})
+    # Center Line
+    add_line(blk, (W/2, -300), (W/2, H+300), "CENTER")
+
+    # Stiffeners
     for i in range(NHS):
-        blk.add_line((0, i*VC+CH100), (W/2, i*VC+CH100), dxfattribs={"layer": "L_OUTLINE"})
-        blk.add_line((0, i*VC+CH100-THK), (W/2, i*VC+CH100-THK), dxfattribs={"layer": "L_HIDDEN"})
-        blk.add_line((0, i*VC), (W/2, i*VC), dxfattribs={"layer": "L_OUTLINE"})
+        add_rect(blk, 0, i*VC, W/2, CH100, "L_OUTLINE")
+        add_line(blk, (0, i*VC+CH100-THK), (W/2, i*VC+CH100-THK), "L_HIDDEN")
+
         for j in range(1, NVS):
             if i >= (NHS-1):
                 continue
-            if j*HC+10 >= W/2:
+            if j*HC+THK >= W/2:
                 continue
-            blk.add_line((j*HC, i*VC+CH100), (j*HC, (i+1)*VC), dxfattribs={"layer": "L_OUTLINE"})
-            blk.add_line((j*HC+10, i*VC+CH100), (j*HC+10, (i+1)*VC), dxfattribs={"layer": "L_OUTLINE"})
-            blk.add_line((j*HC, (i+1)*VC), (j*HC, (i+1)*VC+CH100-10), dxfattribs={"layer": "L_HIDDEN"})
-            blk.add_line((j*HC+10, (i+1)*VC), (j*HC+10, (i+1)*VC+CH100-10), dxfattribs={"layer": "L_HIDDEN"})
+            add_rect(blk, j*HC, i*VC+CH100, THK, VC-THK, "L_OUTLINE")
 
 def draw_hoisting_xsection(blk):
-    GBL = GEAR_BOX_DIM[0]
-    GBH = GEAR_BOX_DIM[-1]
-    SH = SPINDLE_HEIGHT
-    SR = SPINDLE_DIAMETER/2
-    SCH = SPINDLE_COVER_HEIGHT
-    SCR = SPINDLE_COVER_DIAMETER/2
+    THK = p.thk
+    GBH = p.gb_h
+    SH = p.spindle_height
+    SD = p.spindle_dia
+    F = p.spindle_fillet
+    SCH = p.spindle_cover_h
+    SCD = p.spindle_cover_d
+    UTP = p.spindle_unthreaded_portion
+    PHD = p.spindle_cover_ph_dia
+    ssh = p.spindle_support_height_upper
 
-    blk.add_blockref("HANDLE", (195, 240))
+    blk.add_blockref("HANDLE", (0, 0))
     blk.add_blockref("GEARBOX", (0, 0))
 
-    blk.add_lwpolyline(((-SCR-40, GBH+THK*2), (-SCR-40, GBH+THK*3), (SCR+40, GBH+THK*3), (SCR+40, GBH+THK*2)), close=False, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_lwpolyline(((-SCR, GBH+THK*3), (-SCR, GBH+THK*3+SCH), (SCR, GBH+THK*3+SCH), (SCR, GBH+THK*3)), close=False, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((-SCR+10, GBH+THK*3), (-SCR+10 ,GBH+THK*3+SCH), dxfattribs={"layer": "H_HIDDEN"})
-    blk.add_line((SCR-10, GBH+THK*3), (SCR-10 ,GBH+THK*3+SCH), dxfattribs={"layer": "H_HIDDEN"})
+    # Spindle Cover
+    add_rect(blk, -SCD/2, GBH+THK*3, SCD, SCH, "H_OUTLINE")
+    add_rect(blk, -PHD/2, GBH+THK*2, PHD, THK, "H_OUTLINE")
+    add_m_line(blk, (-SCD/2+THK, GBH+THK*3), (-SCD/2+THK ,GBH+THK*3+SCH), [SCD-THK*2], "H_HIDDEN")
 
-    blk.add_lwpolyline(((-SR, GBH+THK*3+50-SH), (-SR, GBH+THK*3+50-10), (-SR+5, GBH+THK*3+50), (SR-5, GBH+THK*3+50), (SR, GBH+THK*3+50-10), (SR, GBH+THK*3+50-SH)), close=True, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_line((-SR+5, GBH+THK*3+50-SH+300), (-SR+5, GBH+THK*3+50), dxfattribs={"layer": "H_HIDDEN"})
-    blk.add_line((SR-5, GBH+THK*3+50-SH+300), (SR-5, GBH+THK*3+50), dxfattribs={"layer": "H_HIDDEN"})
-    blk.add_lwpolyline(((SR, GBH+THK*3+50-SH+100), (SR, GBH+THK*3+50-SH-100), (SR+10, GBH+THK*3+50-SH-100), (SR+10, GBH+THK*3+50-SH+100)), close=True, dxfattribs={"layer": "H_OUTLINE"})
-    blk.add_lwpolyline(((-SR, GBH+THK*3+50-SH+100), (-SR, GBH+THK*3+50-SH-100), (-SR-10, GBH+THK*3+50-SH-100), (-SR-10, GBH+THK*3+50-SH+100)), close=True, dxfattribs={"layer": "H_OUTLINE"})
+    # Spindle
+    add_rect_with_chamfer(blk, -SD/2, GBH+THK*3+50-SH, SD, SH, F, "H_OUTLINE")
+    add_m_line(blk, (-SD/2+F, GBH+THK*3+50-SH+UTP), (-SD/2+F, GBH+THK*3+50), [SD-2*F], "H_HIDDEN")
+
+    # Spindle Support
+    add_rect(blk, SD/2, GBH+THK*3+50-SH+ssh/2, THK, -ssh, "H_OUTLINE")
+    add_rect(blk, -SD/2, GBH+THK*3+50-SH+ssh/2, -THK, -ssh, "H_OUTLINE")
 
 def draw_concrete_xsection(blk):
-    H = WALL_HEIGHT
-    CW = CLEAR_WIDTH
-    CT = CONCRETE_THICKNESS
+    H = p.wall_height
+    CW = p.clear_width
+    CT = p.concrete_thickness
+    CB100 = p.cb100
+    CH100 = p.ch100
+    THK = p.thk
 
     c_poly = ((-CW/2-CB100-THK, H), (-CW/2-CT, H), (-CW/2-CT, -CT), (CW/2+CT, -CT), (CW/2+CT, H), (CW/2+CB100+THK, H), (CW/2+CB100+THK, -THK-CH100), (-CW/2-CB100-THK, -THK-CH100))
     blk.add_lwpolyline(c_poly, close=True, dxfattribs={"layer": "C_OUTLINE"})
-
     hatch = blk.add_hatch( color=9, dxfattribs={'layer': 'HATCH'})
     hatch.set_pattern_fill("AR-CONC", scale=3, angle=0)
     hatch.paths.add_polyline_path(c_poly, is_closed=True)
-
     blk.add_lwpolyline(((CW/2+CT/2, H), (CW/2+CT/2, -CT/2), (-CW/2-CT/2, -CT/2), (-CW/2-CT/2 ,H)), close=False, dxfattribs={"layer": "C_OUTLINE"})
-
 
 draw_frame_xsection(Frame_X)
 draw_leaf_xsection(Leaf_X)
@@ -252,6 +265,8 @@ draw_hoisting_xsection(Hoist_X)
 draw_concrete_xsection(Conc_X)
 msp.add_blockref("FrameXSec", (0,0))
 msp.add_blockref("LeafXSec", (35,0))
-msp.add_blockref("HoistXSec", (THK+CB100+CLEAR_WIDTH/2, FRAME_HEIGHT))
-msp.add_blockref("ConcXSec", (THK+CB100+CLEAR_WIDTH/2, 0))
+msp.add_blockref("HoistXSec", (p.thk+p.cb100+p.clear_width/2, p.frame_height))
+msp.add_blockref("ConcXSec", (p.thk+p.cb100+p.clear_width/2, 0))
+msp.add_blockref("C100", (p.frame_height+1000, p.total_frame_width+1000), dxfattribs={"layer": "S_CHAN_OUTL", "rotation": 90})
+msp.add_blockref("C150", (p.frame_height+1500, p.total_frame_width+1500))
 doc.saveas("gate.dxf")
